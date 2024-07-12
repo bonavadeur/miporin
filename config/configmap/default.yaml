@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-ikukantai
+  namespace: default
+data:
+  queue-tesuto: ohayou
+  queue-meter-exporter-scan-frequency: "2"
+  queue-max-meter-exporter-age: "10"
