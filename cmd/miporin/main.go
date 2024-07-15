@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/bonavadeur/miporin/pkg/bonalib"
@@ -32,6 +30,7 @@ var (
 	SLEEPTIME      = 2
 	METRIC_SCRAPED = make([][]int, 3)
 	MAXPON         = []int{10, 10, 3}
+	OKASAN_SCRAPER = map[string]*scraper.OkasanScraper{}
 )
 
 func WatchEventCreateKsvc() {
@@ -60,8 +59,6 @@ func WatchEventCreateKsvc() {
 		Resource: "seikas",
 	}
 	seikaInstance := &unstructured.Unstructured{}
-
-	bonalib.Use(clientset, seikaGVR, seikaInstance)
 
 	for event := range watcher.ResultChan() {
 		if event.Type == watch.Added {
@@ -135,16 +132,26 @@ func WatchEventCreateKsvc() {
 }
 
 func SchedulerSeika() {
-	currentDesiredPods := make([]int32, len(NODENAMES))
-	newDesiredPods := make([]int32, len(NODENAMES))
-	deltaDesiredPods := make([]int32, len(NODENAMES))
+	// currentDesiredPods := map[string]int32
+	// newDesiredPods := make([]int32, len(NODENAMES))
+	// deltaDesiredPods := make([]int32, len(NODENAMES))
+	currentDesiredPods := map[string]int32{}
+	newDesiredPods := map[string]int32{}
+	deltaDesiredPods := map[string]int32{}
+	decideInNode := map[string]int32{}
+	for _, nodename := range NODENAMES {
+		currentDesiredPods[nodename] = 0
+		newDesiredPods[nodename] = 0
+		deltaDesiredPods[nodename] = 0
+	}
 	firstTime := true
-	var decideInNode decideInNode
 	var minResponseTime, minIdx int
+
+	bonalib.Use(currentDesiredPods, newDesiredPods, deltaDesiredPods, decideInNode, minResponseTime, minIdx, firstTime)
 
 	for {
 		// get desiredPod from KPA
-		response, err := http.Get("http://autoscaler.knative-serving.svc.cluster.local:9999/metrics/kservice/hello")
+		response, err := http.Get("http://autoscaler.knative-serving.svc.cluster.local:9999/metrics/kservices/hello")
 		if err != nil {
 			bonalib.Warn("Error in calling to Kn-Au")
 			time.Sleep(5 * time.Second)
@@ -157,77 +164,69 @@ func SchedulerSeika() {
 
 		// if firsttime, init prevDesiredPods
 		if firstTime {
-			currentDesiredPods = []int32{decideInNode.Node1, decideInNode.Node2, decideInNode.Node3}
-			for i := range currentDesiredPods {
-				deltaDesiredPods[i] = newDesiredPods[i] - currentDesiredPods[i]
-			}
+			currentDesiredPods = decideInNode
 			firstTime = false
-			continue
+		} else {
+			newDesiredPods = decideInNode
+		}
+		for k_cdp := range currentDesiredPods {
+			deltaDesiredPods[k_cdp] = newDesiredPods[k_cdp] - currentDesiredPods[k_cdp]
 		}
 
-		newDesiredPods = []int32{decideInNode.Node1, decideInNode.Node2, decideInNode.Node3}
-		for i := range currentDesiredPods {
-			deltaDesiredPods[i] = newDesiredPods[i] - currentDesiredPods[i]
+		// check if no change in desiredPods, not call to Kubernetes for updating deployment
+		for k_dpp, v_dpp := range deltaDesiredPods {
+			if v_dpp != 0 { // if have any change in delta, break and go to following steps
+				break
+			}
+			if k_dpp == NODENAMES[len(NODENAMES)-1] { // if no change, sleep and continue
+				time.Sleep(time.Duration(SLEEPTIME) * time.Second)
+				continue
+			}
 		}
 
-		// if no change in desiredPods, not call to Kubernetes for updating deployment
-		if reflect.DeepEqual(deltaDesiredPods, []int32{0, 0, 0}) {
-			time.Sleep(time.Duration(SLEEPTIME) * time.Second)
-			continue
+		nodeidx := map[string]int{}
+		for i, nodename := range NODENAMES {
+			nodeidx[nodename] = i
 		}
 
-		// if have change in desiredPods, update deployment
-		bonalib.Info("RESPONSETIME", scraper.RESPONSETIME)
-		for i_ddp := range deltaDesiredPods {
-			for j := deltaDesiredPods[i_ddp]; j != 0; {
-				if j < 0 {
-					currentDesiredPods[i_ddp]--
-					j++
+		for k_ddp := range deltaDesiredPods {
+			for i := deltaDesiredPods[k_ddp]; i != 0; {
+				if i < 0 {
+					currentDesiredPods[k_ddp]--
+					i++
 				}
-				if j > 0 {
+				if i > 0 {
 					minResponseTime = 1000000
 					minIdx = -1
-					for i_rpt := range scraper.RESPONSETIME[i_ddp] { // loop each row of RESPONSETIME
-						if currentDesiredPods[i_ddp] >= int32(MAXPON[i_ddp]) {
+					for i_rpt := range scraper.RESPONSETIME[nodeidx[k_ddp]] { // loop each row of RESPONSETIME
+						if currentDesiredPods[k_ddp] >= int32(MAXPON[nodeidx[k_ddp]]) {
 							continue
 						} else {
-							if scraper.RESPONSETIME[i_ddp][i_rpt] < minResponseTime {
-								minResponseTime = scraper.RESPONSETIME[i_ddp][i_rpt]
+							if scraper.RESPONSETIME[nodeidx[k_ddp]][i_rpt] < minResponseTime {
+								minResponseTime = scraper.RESPONSETIME[nodeidx[k_ddp]][i_rpt]
 								minIdx = i_rpt
 							}
 						}
 					}
 					if minIdx != -1 {
-						currentDesiredPods[minIdx]++
+						currentDesiredPods[NODENAMES[minIdx]]++
 					}
-					j--
+					i--
 				}
 			}
 		}
 
 		bonalib.Log("currentDesiredPods", currentDesiredPods)
 
-		Patch(int(currentDesiredPods[0]), int(currentDesiredPods[1]), int(currentDesiredPods[2]))
-		// for i := range currentDesiredPods {
-		// 	UpdateDeployment("default", "hello-00001-deployment-"+NODES[i], currentDesiredPods[i])
-		// }
+		Patch(currentDesiredPods)
 
 		response.Body.Close()
 		time.Sleep(time.Duration(SLEEPTIME) * time.Second)
 	}
 }
 
-type decideInNode struct {
-	Node1 int32 `json:"node1"`
-	Node2 int32 `json:"node2"`
-	Node3 int32 `json:"node3"`
-}
-
-func Patch(node1 int, node2 int, node3 int) {
+func Patch(desiredPods map[string]int32) {
 	dynamicClient, err := dynamic.NewForConfig(KUBECONFIG)
-	if err != nil {
-		log.Fatalf("Error creating dynamic client: %v", err)
-	}
 
 	gvr := schema.GroupVersionResource{
 		Group:    "batch.bonavadeur.io",
@@ -236,13 +235,13 @@ func Patch(node1 int, node2 int, node3 int) {
 	}
 
 	// Define the patch data
+	repurika := map[string]interface{}{}
+	for _, nodename := range NODENAMES {
+		repurika[nodename] = desiredPods[nodename]
+	}
 	patchData := map[string]interface{}{
 		"spec": map[string]interface{}{
-			"repurika": map[string]interface{}{
-				"node1": node1,
-				"node2": node2,
-				"node3": node3,
-			},
+			"repurika": repurika,
 		},
 	}
 
@@ -268,17 +267,28 @@ func Patch(node1 int, node2 int, node3 int) {
 	bonalib.Info("Patched resource: ", resource)
 }
 
+func license() {
+	for {
+		targetDate, _ := time.Parse("02-01-2006", "15-11-2024")
+		now := time.Now()
+		if !now.Before(targetDate) {
+			panic("This image is expired, contact to daodaihiep22ussr@gmail.com for extending license")
+		}
+		time.Sleep(86400 * time.Second)
+	}
+}
+
 func main() {
 	bonalib.Log("Konnichiwa, Miporin-chan desu")
 
+	go license()
 	// go scrapeMetrics()
-	go scraper.ScrapeMetrics()
+	// go scraper.ScrapeMetrics()
+	go scraper.Scraper(OKASAN_SCRAPER)
 
-	// go Scheduler()
+	// go SchedulerSeika()
 
-	go SchedulerSeika()
-
-	go WatchEventCreateKsvc()
+	// go WatchEventCreateKsvc()
 
 	// Start Echo Server
 	e := echo.New()
@@ -287,8 +297,14 @@ func main() {
 		return c.String(http.StatusOK, "Konnichiwa, Miporin-chan desu\n")
 	})
 
-	e.GET("/api/weighted", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, [][]int(scraper.WEIGHT))
+	// e.GET("/api/weighted", func(c echo.Context) error {
+	// 	return c.JSON(http.StatusOK, [][]int(scraper.WEIGHT))
+	// })
+
+	e.GET("/api/weight/okasan/:okasan/kodomo/:kodomo", func(c echo.Context) error {
+		okasanScraper := c.Param("okasan")
+		kodomoScraper := c.Param("kodomo")
+		return c.JSON(http.StatusOK, OKASAN_SCRAPER[okasanScraper].Kodomo[kodomoScraper].Weight)
 	})
 
 	e.Logger.Fatal(e.Start(":18080"))

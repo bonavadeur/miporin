@@ -18,6 +18,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+type decideInNode struct {
+	Node1 int32 `json:"node1"`
+	Node2 int32 `json:"node2"`
+	Node3 int32 `json:"node3"`
+}
+
 func TriggerChangeCRD() {
 	dynamicClient, _ := dynamic.NewForConfig(KUBECONFIG)
 

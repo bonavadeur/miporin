@@ -9,10 +9,10 @@ func init() {
 
 }
 
-func AddMatrix(MatA [][]int, MatB [][]int) [][]int {
-	MatC := make([][]int, 3)
+func AddMatrix(MatA [][]int32, MatB [][]int32) [][]int32 {
+	MatC := make([][]int32, 3)
 	for i := range MatC {
-		MatC[i] = make([]int, 3)
+		MatC[i] = make([]int32, 3)
 		for j := range MatC[i] {
 			MatC[i][j] = MatA[i][j] + MatB[i][j]
 		}
@@ -21,24 +21,24 @@ func AddMatrix(MatA [][]int, MatB [][]int) [][]int {
 	return MatC
 }
 
-func String2RoundedInt(s string) int {
+func String2RoundedInt(s string) int32 {
 	floatValue, _ := strconv.ParseFloat(s, 32)
 	if math.IsNaN(floatValue) {
 		floatValue = 0.0
 	}
-	intValue := int(math.Round(floatValue))
+	intValue := int32(math.Round(floatValue))
 	return intValue
 }
 
-func Average(slice []int) int {
-	sum := 0
+func Average(slice []int32) int32 {
+	sum := int32(0)
 	for _, value := range slice {
 		sum += value
 	}
 	ret := math.Round(float64(sum) / float64(len(slice)))
 	if math.IsNaN(ret) {
-		return int(0.0)
+		return int32(0.0)
 	} else {
-		return int(ret)
+		return int32(ret)
 	}
 }
