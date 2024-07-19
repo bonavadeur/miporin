@@ -1,7 +1,15 @@
 package scraper
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/bonavadeur/miporin/pkg/bonalib"
 	"github.com/bonavadeur/miporin/pkg/libs"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type OkasanScraper struct {
@@ -13,7 +21,12 @@ type OkasanScraper struct {
 	Kodomo    map[string]*KodomoScraper
 }
 
-func NewOkasanScraper(name string, window string, sleepTime int8) *OkasanScraper {
+func NewOkasanScraper(
+	name string,
+	window string,
+	sleepTime int8,
+) *OkasanScraper {
+
 	atarashiiOkasanScraper := &OkasanScraper{
 		Name:      name,
 		PodOnNode: map[string]int32{},
@@ -27,16 +40,17 @@ func NewOkasanScraper(name string, window string, sleepTime int8) *OkasanScraper
 		atarashiiOkasanScraper.PodOnNode[nodename] = int32(0)
 	}
 
+	// okasan scrape common metrics like: latency,
+	go atarashiiOkasanScraper.scrape()
+
+	// okasan watch ksvc create event to add or remove kodomo
+	go atarashiiOkasanScraper.watchKsvcCreateEvent()
+
 	return atarashiiOkasanScraper
 }
 
-func (o *OkasanScraper) Scrape() {
+func (o *OkasanScraper) scrape() {
 	go o.scrapeLatency()
-	o.scrapeServingTime()
-}
-
-func (o *OkasanScraper) server() {
-
 }
 
 func (o *OkasanScraper) scrapeLatency() [][]int32 {
@@ -64,20 +78,46 @@ func (o *OkasanScraper) scrapeLatency() [][]int32 {
 	}
 }
 
-func (o *OkasanScraper) scrapeServingTime() {
-	for _, ks := range o.Kodomo {
-		go ks.Scrape()
+func (o *OkasanScraper) watchKsvcCreateEvent() {
+	namespace := "default"
+
+	ksvcGVR := schema.GroupVersionResource{
+		Group:    "serving.knative.dev",
+		Version:  "v1",
+		Resource: "services",
+	}
+	watcher, err := DYNCLIENT.Resource(ksvcGVR).Namespace(namespace).Watch(context.TODO(), metav1.ListOptions{
+		Watch: true,
+	})
+	if err != nil {
+		fmt.Println(err)
+		panic(err.Error())
+	}
+
+	for event := range watcher.ResultChan() {
+		ksvc, _ := event.Object.(*unstructured.Unstructured)
+		ksvcName, _, _ := unstructured.NestedString(ksvc.Object, "metadata", "name")
+		if event.Type == watch.Added {
+			bonalib.Warn("Ksvc has been created:", ksvcName)
+			child := NewKodomoScraper(ksvcName, "10", int8(2))
+			o.addKodomo(child)
+			createServiceMonitor(ksvcName)
+		}
+		if event.Type == watch.Deleted {
+			bonalib.Warn("Ksvc has been deleted:", ksvcName)
+			o.deleteKodomo(ksvcName)
+			deleteServiceMonitor(ksvcName)
+		}
 	}
 }
 
-func (o *OkasanScraper) AddKodomo(kodomo *KodomoScraper) {
+func (o *OkasanScraper) addKodomo(kodomo *KodomoScraper) {
 	kodomo.Okasan = o
-	go kodomo.Scrape()
 	o.Kodomo[kodomo.Name] = kodomo
 }
 
-func (o *OkasanScraper) DeleteKodomo(kodomo string) {
-	o.Kodomo[kodomo].Quit <- true
+func (o *OkasanScraper) deleteKodomo(kodomo string) {
+	o.Kodomo[kodomo].ScrapeStop <- true
 	o.Kodomo[kodomo] = nil
 	delete(o.Kodomo, kodomo)
 }

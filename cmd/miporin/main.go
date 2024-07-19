@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/bonavadeur/miporin/pkg/bonalib"
+	"github.com/bonavadeur/miporin/pkg/libs"
 	"github.com/bonavadeur/miporin/pkg/miporin"
 	"github.com/bonavadeur/miporin/pkg/scraper"
+	"github.com/bonavadeur/miporin/pkg/yukari"
 	"github.com/labstack/echo/v4"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,16 +23,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var _ = bonalib.Baka()
-
 var (
-	PROMSERVER     = "http://prometheus-kube-prometheus-prometheus:9090/api/v1/query?query="
-	NODENAMES      = []string{"node1", "node2", "node3"}
-	KUBECONFIG     = miporin.Kubeconfig()
-	SLEEPTIME      = 2
-	METRIC_SCRAPED = make([][]int, 3)
-	MAXPON         = []int{10, 10, 3}
-	OKASAN_SCRAPER = map[string]*scraper.OkasanScraper{}
+	PROMSERVER        = "http://prometheus-kube-prometheus-prometheus:9090/api/v1/query?query="
+	NODENAMES         = []string{"node1", "node2", "node3"}
+	KUBECONFIG        = miporin.Kubeconfig()
+	SLEEPTIME         = 2
+	METRIC_SCRAPED    = make([][]int, 3)
+	MAXPON            = []int{10, 10, 3}
+	OKASAN_SCRAPERS   = map[string]*scraper.OkasanScraper{}
+	OKASAN_SCHEDULERS = map[string]*yukari.OkasanScheduler{}
 )
 
 func WatchEventCreateKsvc() {
@@ -132,9 +133,6 @@ func WatchEventCreateKsvc() {
 }
 
 func SchedulerSeika() {
-	// currentDesiredPods := map[string]int32
-	// newDesiredPods := make([]int32, len(NODENAMES))
-	// deltaDesiredPods := make([]int32, len(NODENAMES))
 	currentDesiredPods := map[string]int32{}
 	newDesiredPods := map[string]int32{}
 	deltaDesiredPods := map[string]int32{}
@@ -260,51 +258,45 @@ func Patch(desiredPods map[string]int32) {
 		Namespace(namespace).
 		Patch(context.TODO(), resourceName, types.MergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		fmt.Printf("Error patching resource: %v", err)
+		bonalib.Warn("Error patching resource: ", err)
+	} else {
+		resource, found, _ := unstructured.NestedString(patchedResource.Object, "metadata", "name")
+		if !found {
+			bonalib.Warn("Seika not found:", err)
+		}
+		bonalib.Info("Patched resource:", resource)
 	}
-
-	resource, _, _ := unstructured.NestedString(patchedResource.Object, "metadata", "name")
-	bonalib.Info("Patched resource: ", resource)
 }
 
-func license() {
-	for {
-		targetDate, _ := time.Parse("02-01-2006", "15-11-2024")
-		now := time.Now()
-		if !now.Before(targetDate) {
-			panic("This image is expired, contact to daodaihiep22ussr@gmail.com for extending license")
-		}
-		time.Sleep(86400 * time.Second)
-	}
+func init() {
+	scraper.OKASAN_SCRAPERS = OKASAN_SCRAPERS
+	yukari.OKASAN_SCRAPERS = OKASAN_SCRAPERS
+	yukari.OKASAN_SCHEDULERS = OKASAN_SCHEDULERS
 }
 
 func main() {
 	bonalib.Log("Konnichiwa, Miporin-chan desu")
 
-	go license()
-	// go scrapeMetrics()
-	// go scraper.ScrapeMetrics()
-	go scraper.Scraper(OKASAN_SCRAPER)
+	go libs.License()
 
-	// go SchedulerSeika()
+	go scraper.Scraper(OKASAN_SCRAPERS)
 
-	// go WatchEventCreateKsvc()
+	if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
+		// go WatchEventCreateKsvc()
+		// go SchedulerSeika()
+		go yukari.Scheduler(OKASAN_SCHEDULERS)
+	}
 
 	// Start Echo Server
 	e := echo.New()
-
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Konnichiwa, Miporin-chan desu\n")
 	})
 
-	// e.GET("/api/weighted", func(c echo.Context) error {
-	// 	return c.JSON(http.StatusOK, [][]int(scraper.WEIGHT))
-	// })
-
 	e.GET("/api/weight/okasan/:okasan/kodomo/:kodomo", func(c echo.Context) error {
 		okasanScraper := c.Param("okasan")
 		kodomoScraper := c.Param("kodomo")
-		return c.JSON(http.StatusOK, OKASAN_SCRAPER[okasanScraper].Kodomo[kodomoScraper].Weight)
+		return c.JSON(http.StatusOK, OKASAN_SCRAPERS[okasanScraper].Kodomo[kodomoScraper].Weight)
 	})
 
 	e.Logger.Fatal(e.Start(":18080"))

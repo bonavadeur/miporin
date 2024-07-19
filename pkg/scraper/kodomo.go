@@ -12,63 +12,70 @@ import (
 )
 
 type KodomoScraper struct {
-	Name      string
-	Metrics   Metrics
-	Window    string // seconds
-	sleepTime int8   // seconds
-	Okasan    *OkasanScraper
-	PodOnNode map[string]int32
-	Weight    [][]int32
-	Quit	  chan bool
+	Name       string
+	Metrics    Metrics
+	window     string // seconds
+	sleepTime  int8   // seconds
+	Okasan     *OkasanScraper
+	PodOnNode  map[string]int32
+	Weight     [][]int32
+	ScrapeStop chan bool
 }
 
 type Metrics struct {
-	servt [][]int32
-	respt [][]int32
+	Servt [][]int32
+	Respt [][]int32
 }
 
-func NewKodomoScraper(name string, window string, sleepTime int8) *KodomoScraper {
+func NewKodomoScraper(
+	name string,
+	window string,
+	sleepTime int8,
+	) *KodomoScraper {
 	atarashiiKodomoScraper := &KodomoScraper{
-		Name:      name,
-		Metrics:   *NewMetrics(),
-		Window:    window,
-		sleepTime: sleepTime,
-		Okasan:    nil,
-		PodOnNode: map[string]int32{},
-		Weight:    make([][]int32, len(NODENAMES)),
-		Quit:      make(chan bool),
+		Name:       name,
+		Metrics:    *NewMetrics(),
+		window:     window,
+		sleepTime:  sleepTime,
+		Okasan:     nil,
+		PodOnNode:  map[string]int32{},
+		Weight:     make([][]int32, len(NODENAMES)),
+		ScrapeStop: make(chan bool),
 	}
 
 	for _, nodename := range NODENAMES {
 		atarashiiKodomoScraper.PodOnNode[nodename] = int32(0)
 	}
 
+	// kodomo scrape own metrics: servingTime
+	go atarashiiKodomoScraper.scrape()
+
 	return atarashiiKodomoScraper
 }
 
 func NewMetrics() *Metrics {
 	newMetrics := &Metrics{
-		servt: [][]int32{},
-		respt: [][]int32{},
+		Servt: [][]int32{},
+		Respt: [][]int32{},
 	}
 
 	return newMetrics
 }
 
-func (k *KodomoScraper) Scrape() {
+func (k *KodomoScraper) scrape() {
 	for {
-        select {
-        case <- k.Quit:
-            return
-        default:
+		select {
+		case <-k.ScrapeStop:
+			return
+		default:
 			k.scrapeServingTime()
 			k.scrapePodOnNode()
-			bonalib.Info("KodomoScraper", k.Name, k.Metrics.servt, k.Okasan.Latency, k.PodOnNode)
-			k.Metrics.respt = libs.AddMatrix(k.Metrics.servt, k.Okasan.Latency)
+			// bonalib.Info("KodomoScraper", k.Name, k.Metrics.servt, k.Okasan.Latency, k.PodOnNode)
+			k.Metrics.Respt = libs.AddMatrix(k.Metrics.Servt, k.Okasan.Latency)
 
 			w := make([][]int32, len(NODENAMES))
-			for i, row := range k.Metrics.respt {
-				w[i] = WeightedNegative(row)
+			for i, row := range k.Metrics.Respt {
+				w[i] = weightedNegative(row)
 			}
 
 			_sumPods := int32(0)
@@ -94,65 +101,20 @@ func (k *KodomoScraper) Scrape() {
 					}
 				}
 				for i, row := range w {
-					w[i] = WeightedPositive(row)
+					w[i] = weightedPositive(row)
 				}
 			}
 
 			k.Weight = w
-			// RESPONSETIME = estimatedResponseTime
-			bonalib.Succ("WEIGHTED", k.Weight)
+			// bonalib.Succ("WEIGHT", k.Name, k.Weight)
 
 			time.Sleep(time.Duration(k.sleepTime) * time.Second)
-        }
-    }
-	for {
-		k.scrapeServingTime()
-		k.scrapePodOnNode()
-		bonalib.Info("KodomoScraper", k.Name, k.Metrics.servt, k.Okasan.Latency, k.PodOnNode)
-		k.Metrics.respt = libs.AddMatrix(k.Metrics.servt, k.Okasan.Latency)
-
-		w := make([][]int32, len(NODENAMES))
-		for i, row := range k.Metrics.respt {
-			w[i] = WeightedNegative(row)
 		}
-
-		_sumPods := int32(0)
-		for nodename := range k.PodOnNode {
-			_sumPods += k.PodOnNode[nodename]
-		}
-
-		if _sumPods == 0 { // PoN == [0, 0, 0]
-			w = [][]int32{
-				{100, 0, 0},
-				{0, 100, 0},
-				{0, 0, 100},
-			}
-		} else {
-			for i := range w {
-				for j := range w[i] {
-					if k.PodOnNode[NODENAMES[j]] == 0 {
-						w[i][j] = 0
-					}
-					if k.PodOnNode[NODENAMES[j]] != 0 && w[i][j] == 0 {
-						w[i][j] = 1
-					}
-				}
-			}
-			for i, row := range w {
-				w[i] = WeightedPositive(row)
-			}
-		}
-
-		k.Weight = w
-		// RESPONSETIME = estimatedResponseTime
-		bonalib.Succ("WEIGHTED", k.Weight)
-
-		time.Sleep(time.Duration(k.sleepTime) * time.Second)
 	}
 }
 
 func (k *KodomoScraper) scrapeServingTime() {
-	servingTimeRaw := Query("rate(revision_request_latencies_sum{service_name=\"" + k.Name + "\"}[" + k.Window + "s])/rate(revision_request_latencies_count{service_name=\"" + k.Name + "\"}[" + k.Window + "s])")
+	servingTimeRaw := Query("rate(revision_request_latencies_sum{service_name=\"" + k.Name + "\"}[" + k.window + "s])/rate(revision_request_latencies_count{service_name=\"" + k.Name + "\"}[" + k.window + "s])")
 	servingTimeResult := servingTimeRaw["data"].(map[string]interface{})["result"].([]interface{})
 
 	servingTimeLine := make([][]int32, len(NODENAMES))
@@ -178,12 +140,13 @@ func (k *KodomoScraper) scrapeServingTime() {
 		servingTime[i] = servingTimeRow
 	}
 
-	k.Metrics.servt = servingTime
+	k.Metrics.Servt = servingTime
 }
 
 func (k *KodomoScraper) scrapePodOnNode() {
-	pods, err := miporin.CLIENTSET.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
+	pods, err := CLIENTSET.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
+		bonalib.Warn("KodomoScraper.scrapePodOnNode: err when list all pods", err)
 		panic(err)
 	}
 

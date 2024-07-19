@@ -1,0 +1,4 @@
+
+APIs:
+    GET miporin.knative-serving/api/weight/okasan/<okasan>/kodomo/<kodomo>
+    GET autoscaler.knative-serving:9999/metrics/kservices/<kservice>

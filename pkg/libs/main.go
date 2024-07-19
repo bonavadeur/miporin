@@ -3,10 +3,30 @@ package libs
 import (
 	"math"
 	"strconv"
+	"time"
+
+	"github.com/bonavadeur/miporin/pkg/bonalib"
+	"github.com/bonavadeur/miporin/pkg/miporin"
+)
+
+var (
+	CLIENTSET = miporin.GetClientSet()
 )
 
 func init() {
 
+}
+
+func License() {
+	for {
+		targetDate, _ := time.Parse("02-01-2006", "15-11-2024")
+		now := time.Now()
+		if !now.Before(targetDate) {
+			bonalib.Warn("This image is expired, contact to daodaihiep22ussr@gmail.com for extending license")
+			panic("This image is expired, contact to daodaihiep22ussr@gmail.com for extending license")
+		}
+		time.Sleep(86400 * time.Second)
+	}
 }
 
 func AddMatrix(MatA [][]int32, MatB [][]int32) [][]int32 {
