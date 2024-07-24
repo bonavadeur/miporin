@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	PROMSERVER        = "http://prometheus-kube-prometheus-prometheus:9090/api/v1/query?query="
+	PROMSERVER        = "http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090/api/v1/query?query="
 	NODENAMES         = []string{"node1", "node2", "node3"}
 	KUBECONFIG        = miporin.Kubeconfig()
 	SLEEPTIME         = 2
@@ -281,11 +281,11 @@ func main() {
 
 	go scraper.Scraper(OKASAN_SCRAPERS)
 
-	// if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
-	// 	// go WatchEventCreateKsvc()
-	// 	// go SchedulerSeika()
-	// 	go yukari.Scheduler(OKASAN_SCHEDULERS)
-	// }
+	if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
+		// go WatchEventCreateKsvc()
+		// go SchedulerSeika()
+		go yukari.Scheduler(OKASAN_SCHEDULERS)
+	}
 
 	// Start Echo Server
 	e := echo.New()
