@@ -13,18 +13,29 @@ import (
 
 type KodomoScraper struct {
 	Name       string
-	Metrics    Metrics
+	Metrics    *Metrics
 	window     string // seconds
 	sleepTime  int8   // seconds
 	Okasan     *OkasanScraper
 	PodOnNode  map[string]int32
 	Weight     [][]int32
-	ScrapeStop chan bool
+	ScrapeStop *StopChan
 }
 
 type Metrics struct {
 	Servt [][]int32
 	Respt [][]int32
+}
+
+type StopChan struct {
+	Kodomo chan bool
+}
+
+func NewStopChan() *StopChan {
+	newStopChan := &StopChan{
+		Kodomo: make(chan bool),
+	}
+	return newStopChan
 }
 
 func NewKodomoScraper(
@@ -34,13 +45,13 @@ func NewKodomoScraper(
 	) *KodomoScraper {
 	atarashiiKodomoScraper := &KodomoScraper{
 		Name:       name,
-		Metrics:    *NewMetrics(),
+		Metrics:    NewMetrics(),
 		window:     window,
 		sleepTime:  sleepTime,
 		Okasan:     nil,
 		PodOnNode:  map[string]int32{},
 		Weight:     make([][]int32, len(NODENAMES)),
-		ScrapeStop: make(chan bool),
+		ScrapeStop: NewStopChan(),
 	}
 
 	for _, nodename := range NODENAMES {
@@ -62,10 +73,14 @@ func NewMetrics() *Metrics {
 	return newMetrics
 }
 
+func (s *StopChan) Stop() {
+	s.Kodomo <- true
+}
+
 func (k *KodomoScraper) scrape() {
 	for {
 		select {
-		case <-k.ScrapeStop:
+		case <-k.ScrapeStop.Kodomo:
 			return
 		default:
 			k.scrapeServingTime()

@@ -28,14 +28,14 @@ func createSeika(ksvcName string) {
 			Deployments(namespace).
 			Get(context.TODO(), ksvcName+"-00001-deployment", metav1.GetOptions{})
 		if err != nil {
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		} else {
 			// delete some fields
 			deployment.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Time{}
 			deployment.ObjectMeta.ResourceVersion = ""
 			deployment.ObjectMeta.UID = ""
-			time.Sleep(5 * time.Second)
+			// time.Sleep(5 * time.Second)
 			break
 		}
 	}

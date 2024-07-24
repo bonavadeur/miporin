@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
+var _ = bonalib.Baka()
+
 type OkasanScraper struct {
 	Name      string
 	PodOnNode map[string]int32
@@ -98,15 +100,17 @@ func (o *OkasanScraper) watchKsvcCreateEvent() {
 		ksvc, _ := event.Object.(*unstructured.Unstructured)
 		ksvcName, _, _ := unstructured.NestedString(ksvc.Object, "metadata", "name")
 		if event.Type == watch.Added {
-			bonalib.Warn("Ksvc has been created:", ksvcName)
+			// bonalib.Warn("+++Ksvc has been created:", ksvcName)
 			child := NewKodomoScraper(ksvcName, "10", int8(2))
 			o.addKodomo(child)
 			createServiceMonitor(ksvcName)
+			// bonalib.Warn("+++Ksvc has been created: end", ksvcName)
 		}
 		if event.Type == watch.Deleted {
-			bonalib.Warn("Ksvc has been deleted:", ksvcName)
-			o.deleteKodomo(ksvcName)
+			// bonalib.Warn("+++Ksvc has been deleted:", ksvcName)
 			deleteServiceMonitor(ksvcName)
+			o.deleteKodomo(ksvcName)
+			// bonalib.Warn("+++Ksvc has been deleted: end", ksvcName)
 		}
 	}
 }
@@ -117,7 +121,7 @@ func (o *OkasanScraper) addKodomo(kodomo *KodomoScraper) {
 }
 
 func (o *OkasanScraper) deleteKodomo(kodomo string) {
-	o.Kodomo[kodomo].ScrapeStop <- true
+	o.Kodomo[kodomo].ScrapeStop.Stop()
 	o.Kodomo[kodomo] = nil
 	delete(o.Kodomo, kodomo)
 }

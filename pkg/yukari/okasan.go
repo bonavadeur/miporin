@@ -19,7 +19,7 @@ type OkasanScheduler struct {
 	Name         string
 	sleepTime    int8
 	Kodomo       map[string]*KodomoScheduler
-	ScheduleStop map[string]chan bool
+	// ScheduleStop map[string](chan int)
 	MaxPoN       map[string]int32
 }
 
@@ -32,7 +32,6 @@ func NewOkasanScheduler(
 		Name:         name,
 		sleepTime:    sleepTime,
 		Kodomo:       map[string]*KodomoScheduler{},
-		ScheduleStop: map[string]chan bool{},
 		MaxPoN:       map[string]int32{},
 	}
 
@@ -58,7 +57,7 @@ func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
 
 	for {
 		select {
-		case <-kodomo.ScheduleStop:
+		case <-kodomo.ScheduleStop.Okasan:
 			return
 		default:
 			decideInNode = kodomo.Decision
@@ -190,25 +189,20 @@ func (o *OkasanScheduler) watchKsvcCreateEvent() {
 		ksvcName, _, _ := unstructured.NestedString(ksvc.Object, "metadata", "name")
 		if event.Type == watch.Added {
 			bonalib.Warn("Ksvc has been created:", ksvcName)
-
+			// create apropriate Seika
+			createSeika(ksvcName)
 			// create apropriate KodomoScheduler
 			child := NewKodomoScheduler(ksvcName, o.sleepTime)
 			o.addKodomo(child)
-
-			// create apropriate Seika
-			createSeika(ksvcName)
-			createSeika(ksvcName)
-			go createSeika(ksvcName)
+			bonalib.Warn("Ksvc has been created: end", ksvcName)
 		}
 		if event.Type == watch.Deleted {
 			bonalib.Warn("Ksvc has been deleted:", ksvcName)
-
+			// delete apropriate Seika
+			deleteSeika(ksvcName)
 			// delete apropriate KodomoScheduler
 			o.deleteKodomo(ksvcName)
-
-			// create apropriate Seika
-			deleteSeika(ksvcName)
-			go deleteSeika(ksvcName)
+			bonalib.Warn("Ksvc has been deleted: end", ksvcName)
 		}
 	}
 }
@@ -216,14 +210,11 @@ func (o *OkasanScheduler) watchKsvcCreateEvent() {
 func (o *OkasanScheduler) addKodomo(kodomo *KodomoScheduler) {
 	kodomo.Okasan = o
 	o.Kodomo[kodomo.Name] = kodomo
-	o.ScheduleStop[kodomo.Name] = make(chan bool)
 	go o.schedule(kodomo)
 }
 
 func (o *OkasanScheduler) deleteKodomo(kodomo string) {
-	o.Kodomo[kodomo].ScheduleStop <- true
-	o.ScheduleStop[kodomo] <- true
-	delete(o.ScheduleStop, kodomo)
+	o.Kodomo[kodomo].ScheduleStop.Stop()
 	o.Kodomo[kodomo] = nil
 	delete(o.Kodomo, kodomo)
 }

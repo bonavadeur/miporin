@@ -14,7 +14,12 @@ type KodomoScheduler struct {
 	window       int32
 	sleepTime    int8
 	Okasan       *OkasanScheduler
-	ScheduleStop chan bool
+	ScheduleStop *StopChan
+}
+
+type StopChan struct {
+	Kodomo chan bool
+	Okasan chan bool
 }
 
 func NewKodomoScheduler(
@@ -24,7 +29,7 @@ func NewKodomoScheduler(
 		Name:         name,
 		sleepTime:    sleepTime,
 		Decision:     map[string]int32{},
-		ScheduleStop: make(chan bool),
+		ScheduleStop: NewStopChan(),
 	}
 
 	for _, nodename := range NODENAMES {
@@ -36,11 +41,24 @@ func NewKodomoScheduler(
 	return atarashiiKodomoScheduler
 }
 
+func NewStopChan() *StopChan {
+	newStopChan := &StopChan{
+		Kodomo: make(chan bool),
+		Okasan: make(chan bool),
+	}
+	return newStopChan
+}
+
+func (s *StopChan) Stop() {
+	s.Kodomo <- true
+	s.Okasan <- true
+}
+
 func (k *KodomoScheduler) schedule() {
 	decideInNode := map[string]int32{}
 	for {
 		select {
-		case <-k.ScheduleStop:
+		case <-k.ScheduleStop.Kodomo:
 			return
 		default:
 			// get desiredPod from KPA

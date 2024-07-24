@@ -281,11 +281,11 @@ func main() {
 
 	go scraper.Scraper(OKASAN_SCRAPERS)
 
-	if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
-		// go WatchEventCreateKsvc()
-		// go SchedulerSeika()
-		go yukari.Scheduler(OKASAN_SCHEDULERS)
-	}
+	// if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
+	// 	// go WatchEventCreateKsvc()
+	// 	// go SchedulerSeika()
+	// 	go yukari.Scheduler(OKASAN_SCHEDULERS)
+	// }
 
 	// Start Echo Server
 	e := echo.New()
@@ -294,9 +294,18 @@ func main() {
 	})
 
 	e.GET("/api/weight/okasan/:okasan/kodomo/:kodomo", func(c echo.Context) error {
-		okasanScraper := c.Param("okasan")
-		kodomoScraper := c.Param("kodomo")
-		return c.JSON(http.StatusOK, OKASAN_SCRAPERS[okasanScraper].Kodomo[kodomoScraper].Weight)
+		// okasanScraper, ok := OKASAN_SCRAPERS[c.Param("okasan")].Kodomo[c.Param("kodomo")]
+		okasanScraper, ok := OKASAN_SCRAPERS[c.Param("okasan")]
+		if ok {
+			kodomoScraper, ok := okasanScraper.Kodomo[c.Param("kodomo")]
+			if ok {
+				return c.JSON(http.StatusOK, kodomoScraper.Weight)
+			} else {
+				return c.JSON(http.StatusNotFound, "NotFound")
+			}
+		} else {
+			return c.JSON(http.StatusNotFound, "NotFound")
+		}
 	})
 
 	e.Logger.Fatal(e.Start(":18080"))

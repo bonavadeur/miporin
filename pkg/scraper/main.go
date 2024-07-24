@@ -8,7 +8,7 @@ import (
 var _ = bonalib.Baka()
 
 var (
-	PROMSERVER      = "http://prometheus-kube-prometheus-prometheus:9090/api/v1/query?query="
+	PROMSERVER      = "http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090/api/v1/query?query="
 	NODENAMES       = miporin.GetNodenames()
 	WEIGHT          = make([][]int, len(NODENAMES))
 	SLEEPTIME       = 2

@@ -105,6 +105,7 @@ func weightedPositive(array []int32) []int32 {
 }
 
 func createServiceMonitor(ksvcName string) {
+	bonalib.Info("start creating ServiceMonitor")
 	smonGVR := schema.GroupVersionResource{
 		Group:    "monitoring.coreos.com",
 		Version:  "v1",
@@ -158,6 +159,7 @@ func createServiceMonitor(ksvcName string) {
 }
 
 func deleteServiceMonitor(ksvcName string) {
+	bonalib.Info("start deleting ServiceMonitor")
 	namespace := "default"
 
 	smonGVR := schema.GroupVersionResource{
@@ -176,6 +178,6 @@ func deleteServiceMonitor(ksvcName string) {
 	if err != nil {
 		bonalib.Warn("Failed to delete Seika instance")
 	} else {
-		bonalib.Info("Deleted Seika instance", ksvcName)
+		bonalib.Info("Deleted ServiceMonitor instance", ksvcName)
 	}
 }
