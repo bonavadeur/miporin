@@ -10,17 +10,10 @@ var _ = bonalib.Baka()
 var (
 	PROMSERVER      = "http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090/api/v1/query?query="
 	NODENAMES       = miporin.GetNodenames()
-	WEIGHT          = make([][]int, len(NODENAMES))
-	SLEEPTIME       = 2
-	RESPONSETIME    [][]int
 	CLIENTSET       = miporin.GetClientSet()
 	DYNCLIENT       = miporin.GetDynamicClient()
 	OKASAN_SCRAPERS = map[string]*OkasanScraper{}
 )
-
-func init() {
-	WEIGHT = make([][]int, len(NODENAMES))
-}
 
 func Scraper(OKASAN_SCRAPERS map[string]*OkasanScraper) {
 	// create new okasan

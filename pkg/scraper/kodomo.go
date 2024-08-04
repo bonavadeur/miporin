@@ -31,13 +31,6 @@ type StopChan struct {
 	Kodomo chan bool
 }
 
-func NewStopChan() *StopChan {
-	newStopChan := &StopChan{
-		Kodomo: make(chan bool),
-	}
-	return newStopChan
-}
-
 func NewKodomoScraper(
 	name string,
 	window string,
@@ -69,8 +62,14 @@ func NewMetrics() *Metrics {
 		Servt: [][]int32{},
 		Respt: [][]int32{},
 	}
-
 	return newMetrics
+}
+
+func NewStopChan() *StopChan {
+	newStopChan := &StopChan{
+		Kodomo: make(chan bool),
+	}
+	return newStopChan
 }
 
 func (s *StopChan) Stop() {
@@ -85,7 +84,6 @@ func (k *KodomoScraper) scrape() {
 		default:
 			k.scrapeServingTime()
 			k.scrapePodOnNode()
-			// bonalib.Info("KodomoScraper", k.Name, k.Metrics.servt, k.Okasan.Latency, k.PodOnNode)
 			k.Metrics.Respt = libs.AddMatrix(k.Metrics.Servt, k.Okasan.Latency)
 
 			w := make([][]int32, len(NODENAMES))
@@ -121,7 +119,6 @@ func (k *KodomoScraper) scrape() {
 			}
 
 			k.Weight = w
-			// bonalib.Succ("WEIGHT", k.Name, k.Weight)
 
 			time.Sleep(time.Duration(k.sleepTime) * time.Second)
 		}

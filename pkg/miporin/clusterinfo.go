@@ -17,10 +17,6 @@ var (
 	PODCIDRS   = GetPodsCIDRs()
 )
 
-func init() {
-
-}
-
 func GetNodenames() []string {
 	nodes, err := CLIENTSET.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {

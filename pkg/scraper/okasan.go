@@ -3,10 +3,12 @@ package scraper
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/bonavadeur/miporin/pkg/bonalib"
 	"github.com/bonavadeur/miporin/pkg/libs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -16,7 +18,6 @@ var _ = bonalib.Baka()
 
 type OkasanScraper struct {
 	Name      string
-	PodOnNode map[string]int32
 	Latency   [][]int32
 	Window    string
 	sleepTime int8
@@ -31,16 +32,12 @@ func NewOkasanScraper(
 
 	atarashiiOkasanScraper := &OkasanScraper{
 		Name:      name,
-		PodOnNode: map[string]int32{},
 		Latency:   [][]int32{},
 		Window:    window,
 		sleepTime: sleepTime,
 		Kodomo:    map[string]*KodomoScraper{},
 	}
-
-	for _, nodename := range NODENAMES {
-		atarashiiOkasanScraper.PodOnNode[nodename] = int32(0)
-	}
+	atarashiiOkasanScraper.init()
 
 	// okasan scrape common metrics like: latency,
 	go atarashiiOkasanScraper.scrape()
@@ -49,6 +46,23 @@ func NewOkasanScraper(
 	go atarashiiOkasanScraper.watchKsvcCreateEvent()
 
 	return atarashiiOkasanScraper
+}
+
+func (o *OkasanScraper) init() {
+	ksvcGVR := schema.GroupVersionResource{
+		Group:    "serving.knative.dev",
+		Version:  "v1",
+		Resource: "services",
+	}
+	ksvcList, err := DYNCLIENT.Resource(ksvcGVR).Namespace("default").List(context.TODO(), v1.ListOptions{})
+	if err != nil {
+		bonalib.Warn("Error listing Knative services", err)
+	}
+	for _, ksvc := range ksvcList.Items {
+		ksvcName := ksvc.GetName()
+		child := NewKodomoScraper(ksvcName, o.Window, o.sleepTime)
+		o.addKodomo(child)
+	}
 }
 
 func (o *OkasanScraper) scrape() {
@@ -77,6 +91,8 @@ func (o *OkasanScraper) scrapeLatency() [][]int32 {
 		}
 
 		o.Latency = latency
+
+		time.Sleep(time.Duration(o.sleepTime) * time.Second)
 	}
 }
 
@@ -100,17 +116,13 @@ func (o *OkasanScraper) watchKsvcCreateEvent() {
 		ksvc, _ := event.Object.(*unstructured.Unstructured)
 		ksvcName, _, _ := unstructured.NestedString(ksvc.Object, "metadata", "name")
 		if event.Type == watch.Added {
-			// bonalib.Warn("+++Ksvc has been created:", ksvcName)
-			child := NewKodomoScraper(ksvcName, "10", int8(2))
+			child := NewKodomoScraper(ksvcName, o.Window, int8(2))
 			o.addKodomo(child)
 			createServiceMonitor(ksvcName)
-			// bonalib.Warn("+++Ksvc has been created: end", ksvcName)
 		}
 		if event.Type == watch.Deleted {
-			// bonalib.Warn("+++Ksvc has been deleted:", ksvcName)
 			deleteServiceMonitor(ksvcName)
 			o.deleteKodomo(ksvcName)
-			// bonalib.Warn("+++Ksvc has been deleted: end", ksvcName)
 		}
 	}
 }

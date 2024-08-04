@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"time"
 
 	"github.com/bonavadeur/miporin/pkg/bonalib"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,11 +18,11 @@ import (
 )
 
 type OkasanScheduler struct {
-	Name         string
-	sleepTime    int8
-	Kodomo       map[string]*KodomoScheduler
-	// ScheduleStop map[string](chan int)
-	MaxPoN       map[string]int32
+	Name      string
+	sleepTime int8
+	Kodomo    map[string]*KodomoScheduler
+	MaxPoN      map[string]int32
+	KPADecision map[string]map[string]int32
 }
 
 func NewOkasanScheduler(
@@ -29,15 +31,57 @@ func NewOkasanScheduler(
 ) *OkasanScheduler {
 
 	atarashiiOkasanScheduler := &OkasanScheduler{
-		Name:         name,
-		sleepTime:    sleepTime,
-		Kodomo:       map[string]*KodomoScheduler{},
-		MaxPoN:       map[string]int32{},
+		Name:        name,
+		sleepTime:   sleepTime,
+		Kodomo:      map[string]*KodomoScheduler{},
+		MaxPoN:      map[string]int32{},
+		KPADecision: map[string]map[string]int32{},
 	}
+	atarashiiOkasanScheduler.init()
+
+	go atarashiiOkasanScheduler.scrapeKPA()
 
 	go atarashiiOkasanScheduler.watchKsvcCreateEvent()
 
 	return atarashiiOkasanScheduler
+}
+
+func (o *OkasanScheduler) init() {
+	ksvcGVR := schema.GroupVersionResource{
+		Group:    "serving.knative.dev",
+		Version:  "v1",
+		Resource: "services",
+	}
+	ksvcList, err := DYNCLIENT.Resource(ksvcGVR).Namespace("default").List(context.TODO(), v1.ListOptions{})
+	if err != nil {
+		bonalib.Warn("Error listing Knative services:", err)
+	}
+	for _, ksvc := range ksvcList.Items {
+		ksvcName := ksvc.GetName()
+		child := NewKodomoScheduler(ksvcName, o.sleepTime)
+		o.addKodomo(child)
+	}
+}
+
+func (o *OkasanScheduler) scrapeKPA() {
+	decideInNode := map[string]map[string]int32{}
+	for {
+		response, err := http.Get("http://autoscaler.knative-serving.svc.cluster.local:9999/metrics/kservices")
+		if err != nil {
+			bonalib.Warn("Error in calling to Kn-Au")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if err := json.NewDecoder(response.Body).Decode(&decideInNode); err != nil {
+			bonalib.Warn("Failed to decode JSON: ", err)
+			continue
+		}
+		response.Body.Close()
+
+		o.KPADecision = decideInNode
+
+		time.Sleep(time.Duration(o.sleepTime) * time.Second)
+	}
 }
 
 func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
@@ -116,8 +160,7 @@ func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
 				}
 			}
 
-			bonalib.Log("currentDesiredPods", currentDesiredPods)
-
+			bonalib.Log("currentDesiredPods", o.Name, currentDesiredPods)
 			o.patchSchedule(currentDesiredPods)
 
 			time.Sleep(time.Duration(o.sleepTime) * time.Second)

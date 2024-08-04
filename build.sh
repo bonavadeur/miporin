@@ -119,6 +119,7 @@ elif [ $OPTION == "log" ]; then
 elif [ $OPTION == "local" ]; then
     endpoint=$(kubectl -n $NAMESPACE get endpoints | grep $IMAGE | awk '{print $1}')
     if [ "$endpoint" == "$IMAGE" ]; then
+        kubectl -n $NAMESPACE patch deploy $component --patch '{"spec":{"replicas":0}}'
         kubectl delete -f config/svc.yaml
         kubectl apply -f config/localdev.yaml
     fi
@@ -131,6 +132,7 @@ elif [ $OPTION == "ful" ]; then
     endpoint=$(kubectl -n $NAMESPACE get endpoints | grep $IMAGE | awk '{print $1}')
     if [ "$endpoint" == "" ]; then
         kubectl delete -f config/localdev.yaml
+        kubectl -n $NAMESPACE patch deploy $component --patch '{"spec":{"replicas":1}}'
         kubectl apply -f config/svc.yaml
     fi
     koBuild

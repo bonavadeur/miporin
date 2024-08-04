@@ -17,7 +17,10 @@ func init() {
 
 }
 
-func License() {
+func License(required bool) {
+	if !required {
+		return
+	}
 	for {
 		targetDate, _ := time.Parse("02-01-2006", "15-11-2024")
 		now := time.Now()

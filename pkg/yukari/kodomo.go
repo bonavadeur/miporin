@@ -1,11 +1,7 @@
 package yukari
 
 import (
-	"encoding/json"
-	"net/http"
 	"time"
-
-	"github.com/bonavadeur/miporin/pkg/bonalib"
 )
 
 type KodomoScheduler struct {
@@ -55,27 +51,12 @@ func (s *StopChan) Stop() {
 }
 
 func (k *KodomoScheduler) schedule() {
-	decideInNode := map[string]int32{}
 	for {
 		select {
 		case <-k.ScheduleStop.Kodomo:
 			return
 		default:
-			// get desiredPod from KPA
-			response, err := http.Get("http://autoscaler.knative-serving.svc.cluster.local:9999/metrics/kservices/" + k.Name)
-			if err != nil {
-				bonalib.Warn("Error in calling to Kn-Au")
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			if err := json.NewDecoder(response.Body).Decode(&decideInNode); err != nil {
-				bonalib.Warn("Failed to decode JSON: ", err)
-				continue
-			}
-			response.Body.Close()
-
-			k.Decision = decideInNode
-
+			k.Decision = k.Okasan.KPADecision[k.Name]
 			time.Sleep(time.Duration(k.sleepTime) * time.Second)
 		}
 	}
