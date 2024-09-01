@@ -13,7 +13,7 @@ import (
 func Kubeconfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if os.Getenv("MIPORIN_ENVIRONMENT") == "local" {
+	if os.Getenv("MIPORIN_ENVIRONMENT") == "" {
 		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
 		if err != nil {
 			panic(err)
