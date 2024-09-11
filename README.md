@@ -1,4 +1,4 @@
-# Miporin - みぽりん - the extra controller of ikukantai
+# Miporin - みぽりん - the tank commander of ikukantai fleet
 
 [![LICENSE](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)
@@ -6,15 +6,15 @@
 ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white)
 
-`miporin`-chan is the extra controller of `ikukantai`, working alongside with and is independent of Knative's controller
+`miporin`-chan is the extra-controller of `ikukantai`, working alongside with and is independent of Knative's controller.
 
 ![](docs/images/miporin_wp.jpg)
 
 ## 1. Motivation
 
-To achieve the [goals](https://github.com/bonavadeur/ikukantai?tab=readme-ov-file#1-motivation) set by the `ikukantai` fleet, in addition to modifying Knative's source code, we needed a component acts as a controller that exploits the refined code inside Knative. In theory, we can develop additional logic in Knative's controller component. However, that will be more difficult than developing an extra external component for PoC purposes in the Laboratory (yaa, we work in the Laboratory, not Industry).
+To achieve the [goals](https://github.com/bonavadeur/ikukantai?tab=readme-ov-file#1-motivation) posed by the `ikukantai` fleet, in addition to modifying Knative's source code, we needed a component acts as a controller that exploits the refined code inside Knative. In theory, we can develop additional logic in Knative's controller component. However, that will be more difficult than developing an extra external component for PoC purposes in the Laboratory (yaa, we work in the Laboratory, not Industry).
 
-The name `miporin` is inspired by the character `Nishizumi Miho` in the anime `Girls und Panzer`. Miho is the tank commander, implying `miporin`'s leadership role in the `ikukantai` fleet (remember that Ooarai High School is located in a aircraft carrier, and, `ikukantai` is implied to be that ship). Miporin is the nickname given to Miho by her friends.
+The name `miporin` is inspired by the character `Nishizumi Miho` from the anime `Girls und Panzer`. Miho is the tank commander, implying `miporin`'s leadership role in the `ikukantai` fleet (remember that Ooarai High School is located in an aircraft carrier, and, `ikukantai` is implied to be that ship). `miporin` is nickname given to Miho by her friends.
 
 ## 2. System Design
 
@@ -34,7 +34,7 @@ The name `miporin` is inspired by the character `Nishizumi Miho` in the anime `G
 kubectl apply -f config/miporin.yaml
 ```
 
-### 3.3. Developing
+### 3.3. Development
 
 ```bash
 # grant execute permission to build.sh file
