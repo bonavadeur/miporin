@@ -85,11 +85,11 @@ func (o *OkasanScheduler) scrapeKPA() {
 }
 
 func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
+	decideInNode := map[string]int32{}
 	currentDesiredPods := map[string]int32{}
 	newDesiredPods := map[string]int32{}
 	deltaDesiredPods := map[string]int32{}
-	decideInNode := map[string]int32{}
-	noChanges := map[string]int32{}
+	noChanges := map[string]int32{} // noChanges is a const, equal [0, 0, 0]
 	for _, nodename := range NODENAMES {
 		currentDesiredPods[nodename] = 0
 		newDesiredPods[nodename] = 0
@@ -98,6 +98,11 @@ func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
 	}
 	firstTime := true
 	var minResponseTime, minIdx int32
+
+	nodeidx := map[string]int{}
+	for i, nodename := range NODENAMES {
+		nodeidx[nodename] = i
+	}
 
 	for {
 		select {
@@ -127,13 +132,8 @@ func (o *OkasanScheduler) schedule(kodomo *KodomoScheduler) {
 				continue
 			}
 
-			nodeidx := map[string]int{}
-			for i, nodename := range NODENAMES {
-				nodeidx[nodename] = i
-			}
-
-			for k_ddp := range deltaDesiredPods {
-				for i := deltaDesiredPods[k_ddp]; i != 0; {
+			for k_ddp, v_ddp := range deltaDesiredPods {
+				for i := v_ddp; i != 0; {
 					if i < 0 {
 						currentDesiredPods[k_ddp]--
 						i++

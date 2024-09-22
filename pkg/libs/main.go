@@ -33,9 +33,10 @@ func License(required bool) {
 }
 
 func AddMatrix(MatA [][]int32, MatB [][]int32) [][]int32 {
-	MatC := make([][]int32, 3)
+	n := len(MatA)
+	MatC := make([][]int32, n)
 	for i := range MatC {
-		MatC[i] = make([]int32, 3)
+		MatC[i] = make([]int32, n)
 		for j := range MatC[i] {
 			MatC[i][j] = MatA[i][j] + MatB[i][j]
 		}

@@ -97,10 +97,12 @@ func (k *KodomoScraper) scrape() {
 			}
 
 			if _sumPods == 0 { // PoN == [0, 0, 0]
-				w = [][]int32{
-					{100, 0, 0},
-					{0, 100, 0},
-					{0, 0, 100},
+				w = make([][]int32, len(NODENAMES))
+				for i := range w {
+					w[i] = make([]int32, len(NODENAMES))
+				}
+				for i := 0; i < len(NODENAMES); i++ {
+					w[i][i] = 100
 				}
 			} else {
 				for i := range w {

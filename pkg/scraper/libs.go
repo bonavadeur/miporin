@@ -176,7 +176,7 @@ func deleteServiceMonitor(ksvcName string) {
 		PropagationPolicy: &deletePolicy,
 	})
 	if err != nil {
-		bonalib.Warn("Failed to delete Seika instance")
+		bonalib.Warn("Failed to delete ServiceMonitor instance")
 	} else {
 		bonalib.Info("Deleted ServiceMonitor instance", ksvcName)
 	}
