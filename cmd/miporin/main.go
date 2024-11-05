@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/bonavadeur/miporin/pkg/bonalib"
-	"github.com/bonavadeur/miporin/pkg/libs"
 	"github.com/bonavadeur/miporin/pkg/miporin"
 	"github.com/bonavadeur/miporin/pkg/scraper"
 	"github.com/bonavadeur/miporin/pkg/yukari"
@@ -19,8 +18,8 @@ var (
 )
 
 func init() {
-	scraper.OKASAN_SCRAPERS  = OKASAN_SCRAPERS
-	yukari.OKASAN_SCRAPERS   = OKASAN_SCRAPERS
+	scraper.OKASAN_SCRAPERS = OKASAN_SCRAPERS
+	yukari.OKASAN_SCRAPERS = OKASAN_SCRAPERS
 	yukari.OKASAN_SCHEDULERS = OKASAN_SCHEDULERS
 }
 
@@ -28,15 +27,12 @@ func main() {
 	bonalib.Log("Konnichiwa, Miporin-chan desu")
 	ctx := context.Background()
 
-	// check license ahihi
-	go libs.License(false)
-
 	// start scraper
 	go scraper.Scraper(OKASAN_SCRAPERS)
 
 	// start scheduler
 	if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
-		go yukari.Scheduler(OKASAN_SCHEDULERS)
+		// go yukari.Scheduler(OKASAN_SCHEDULERS)
 	}
 
 	// start echo server
