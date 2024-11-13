@@ -2,7 +2,7 @@
 
 [![release](https://img.shields.io/badge/miporin--v1.0-log?style=flat&label=release&color=hotpink)]()
 [![LICENSE](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![CloudNet2024](https://img.shields.io/badge/CloudNet--2024-log?style=flat&label=IEEE&color=dodgerblue)](https://cloudnet2024.ieee-cloudnet.org)
+[![CloudNet2024](https://img.shields.io/badge/IEEE--CloudNet--2024-log?style=flat&label=publication&color=dodgerblue)](https://cloudnet2024.ieee-cloudnet.org)
 
 [![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white&link=https%3A%2F%2Fkubernetes.io)](https://kubernetes.io/)
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)]()
