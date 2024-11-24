@@ -51,6 +51,21 @@ $ chmod +x ./build.sh
 $ ./build.sh ful
 ```
 
+Change Endpoint IP address to IP of your machine for running `miporin` by binary:
+
+```yaml
+# file ./config/localdev.yaml
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: miporin-localdev
+  namespace: knative-serving
+...
+endpoints:
+  - addresses:
+    - "192.168.122.100" # change this to be your IP, example: 192.168.189.22
+```
+
 Some util commands
 
 ```bash
