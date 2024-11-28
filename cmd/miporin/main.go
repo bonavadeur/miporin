@@ -32,7 +32,7 @@ func main() {
 
 	// start scheduler
 	if miporin.Cm2Bool("ikukantai-miporin-enable-yukari") {
-		// go yukari.Scheduler(OKASAN_SCHEDULERS)
+		go yukari.Scheduler(OKASAN_SCHEDULERS)
 	}
 
 	// start echo server
