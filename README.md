@@ -1,4 +1,4 @@
-# Miporin - みぽりん - the tank commander of ikukantai fleet
+# Miporin - みぽりん
 
 [![release](https://img.shields.io/badge/miporin--v1.0-log?style=flat&label=release&color=hotpink)]()
 [![LICENSE](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -10,7 +10,7 @@
 [![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
 [![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=Prometheus&logoColor=white)](https://prometheus.io/)
 
-`miporin`-chan is the extra-controller of `ikukantai`, working alongside and independently of Knative's controller.
+`miporin`-chan is the extra-controller of [ikukantai](https://github.com/bonavadeur/ikukantai) Fleet, working alongside and independently of Knative's controller.
 
 ![](docs/images/miporin_wp.jpg)
 
