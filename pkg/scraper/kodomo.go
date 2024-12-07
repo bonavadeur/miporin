@@ -170,7 +170,7 @@ func (k *KodomoScraper) scrapePodOnNode() {
 	}
 
 	for _, pod := range pods.Items {
-		if pod.Status.Phase != "Terminating" && pod.Status.Phase != "Pending" && strings.Contains(pod.Name, "hello") {
+		if pod.Status.Phase != "Terminating" && pod.Status.Phase != "Pending" && strings.Contains(pod.Name, k.Name) {
 			podOnNode[pod.Spec.NodeName]++
 		}
 	}

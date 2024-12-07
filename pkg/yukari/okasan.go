@@ -194,7 +194,7 @@ func (o *OkasanScheduler) patchSchedule(desiredPods map[string]int32) {
 
 	// Namespace and resource name
 	namespace := "default"
-	resourceName := "hello"
+	resourceName := o.Name
 
 	// Execute the patch request
 	patchedResource, err := DYNCLIENT.Resource(gvr).
